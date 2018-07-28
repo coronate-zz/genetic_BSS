@@ -8,6 +8,7 @@ import numpy as np
 import random
 import itertools
 import copy
+import pdb
 from tqdm import tqdm
 import pickle
 
@@ -31,7 +32,7 @@ def subsytem_distribution_iterativeOptimization(N_ITERATION,FLEET, MAP, SOLUCION
     FLEET_SECONDARY = copy.deepcopy(FLEET)
     MIN_COST = 10000000
     firstIteration =  True
-    for i in  tqdm(range(N_ITERATION), ascii= True, desc = "Iterative optimization"): 
+    for i in range(N_ITERATION): 
         if firstIteration:
             start_cost = FLEET.accumalated_cost
             firstIteration = False
@@ -47,60 +48,19 @@ def subsytem_distribution_iterativeOptimization(N_ITERATION,FLEET, MAP, SOLUCION
 
     return MIN_COST, FLEET_MIN 
 
-
-def subsystem_distribution_iterativeGradientOptimization(N_ITERATION,FLEET, MAP, SOLUCIONES):
-    FLEET.solve_subsystems(MAP, SOLUCIONES)
-    FLEET_MIN = copy.deepcopy(FLEET)
-    MIN_COST_ITERATION = 10000000
-    firstIteration =  True
-    for i in  tqdm(range(N_ITERATION), ascii= True, desc = "Iterative optimization"): 
-        stillChange = True
-        stillChange = True
-        firstIteration = True
-        FLEET_SECONDARY = copy.deepcopy(FLEET)
-        FLEET_SECONDARY.assignArea(MAP)               
-        FLEET_SECONDARY.solve_subsystems(MAP, SOLUCIONES)
-        cont = 0
-
-        while stillChange:
-            print("Distribution optimization: {} of max 10".format(cont))
-            if firstIteration:
-                start_cost = FLEET_SECONDARY.accumalated_cost
-                #print("START COST: " + str(start_cost))
-                firstIteration =  False
-
-            FLEET_SECONDARY.set_cost_distribution()
-            cost_fleet = FLEET_SECONDARY.cost_distribution
-            most_expensive_car = cost_fleet.head(1).index[0] #Id of car with the route with more cost.
-            most_expensive_car = FLEET_SECONDARY.fleet[most_expensive_car]
-
-            most_expensive_station = most_expensive_car.get_mostExpensive_station()
-            most_expensive_car.subsystem_list.remove(most_expensive_station)
-            most_expensive_car.set_subsystem(MAP)
-
-            MAP.update_available_stations(FLEET_SECONDARY)
-            MAP.change_station(most_expensive_car, MAP) #this function must change the worst station for most_expensive_car to another station
-            
-            FLEET_SECONDARY.solve_subsystems(MAP, SOLUCIONES)
-            if FLEET_SECONDARY.accumalated_cost < FLEET.accumalated_cost:
-                FLEET = copy.deepcopy(FLEET_SECONDARY)
-                stillChange =  True
-                cont = 0
-                #print("New FLEET_MIN cost: {}".format(FLEET.accumalated_cost))
-            else:
-                if cont >= 10:
-                    stillChange = False 
-                else:
-                    cont += 1
-        FLEET_MIN = copy.deepcopy(FLEET_SECONDARY)
-        MIN_COST =  FLEET_MIN.accumalated_cost
-        print("The subsystem distribution was optimized:\n\t Initial Cost: {} \n\t Final Cost: {}".format(start_cost, MIN_COST))
-
-        if FLEET_MIN.accumalated_cost < MIN_COST_ITERATION:
-            FLEET_MIN_ITERATION = copy.deepcopy(FLEET)
-            MIN_COST_ITERATION = FLEET_MIN_ITERATION.accumalated_cost
-            print("New min cost {}".format(MIN_COST_ITERATION))
-    return MIN_COST_ITERATION, FLEET_MIN_ITERATION
+def decode_chromosome(chromosome, bits_per_station):
+    """
+    Divides a chromosome in blocks of size bits_per_station and decode them
+    """
+    start = 0 
+    cut = bits_per_station
+    station_bits = self.bits_per_station(self.N_STATIONS)
+    stations_list = []
+    while cut <=len(chromosome):
+        station  = "estacion_" + str(int(chromosome[start:cut],2))
+        stations_list.append( station)
+        start=cut
+        cut+= station_bits
 
 
 def subsystem_distribution_gradientOptimization(FLEET, MAP, SOLUCIONES):
@@ -422,12 +382,12 @@ def solveSystem(S, SOLUCIONES, N_STATES, N_STATIONS, equivalent_systems= False, 
                 total_cost = mov_cost + SminiusMov_cost
 
                 #print("\n" +tab+ "Ruta evaluda: mov_cost {} total_cost {} ".format( mov_cost, total_cost))
-
+                #print("TEST2: {}   , {} ".format(total_cost, min_cost))
                 if total_cost < min_cost:
                     min_cost    = total_cost
                     optimal_mov = SminiusMov_movements +  [[0,mov]]
-                    #print( "\n"+tab+"NUEVO MINIMO: {}   =>  {} xxxx {} ".format(min_cost, optimal_mov, SminiusMov_movements) )
 
+                    #print( "\n"+tab+"NUEVO MINIMO: {}   =>  {} xxxx {} ".format(min_cost, optimal_mov, SminiusMov_movements) )
         insertSolution( codeS, optimal_mov, min_cost, equivalent_systems, SOLUCIONES)
         return optimal_mov, min_cost
 
