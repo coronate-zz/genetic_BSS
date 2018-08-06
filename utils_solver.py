@@ -9,10 +9,8 @@ import random
 import itertools
 import copy
 import pdb
-from tqdm import tqdm
 import pickle
 
-tqdm.monitor_interval = 0
 
 
 def save_obj(obj, name ):
@@ -23,12 +21,11 @@ def load_obj(name ):
     with open('diccionarios/' + name + '.pkl', 'rb') as f:
         return pickle.load(f)
 
-def subsytem_distribution_iterativeOptimization(N_ITERATION,FLEET, MAP, SOLUCIONES):
+def subsytem_distribution_iterativeOptimization(N_ITERATION,FLEET, MAP, SOLUCIONES, N_STATIONS, N_STATES):
     """
     This fucntions works as follows:
         First it takes the fleet passed by the user. 
     """
-    FLEET.solve_subsystems(MAP, SOLUCIONES)
     FLEET_SECONDARY = copy.deepcopy(FLEET)
     MIN_COST = 10000000
     firstIteration =  True
@@ -38,7 +35,7 @@ def subsytem_distribution_iterativeOptimization(N_ITERATION,FLEET, MAP, SOLUCION
             firstIteration = False
         #This part change for optimization
         FLEET_SECONDARY.assignArea(MAP)                #Assign subsystem to each car
-        FLEET_SECONDARY.solve_subsystems(MAP, SOLUCIONES)
+        FLEET_SECONDARY.solve_subsystems(MAP, SOLUCIONES, N_STATIONS, N_STATES)
         if FLEET_SECONDARY.accumalated_cost < MIN_COST:
             FLEET_MIN = copy.deepcopy(FLEET_SECONDARY)
             MIN_COST = FLEET_MIN.accumalated_cost
@@ -63,7 +60,7 @@ def decode_chromosome(chromosome, bits_per_station):
         cut+= station_bits
 
 
-def subsystem_distribution_gradientOptimization(FLEET, MAP, SOLUCIONES):
+def subsystem_distribution_gradientOptimization(FLEET, MAP, SOLUCIONES, N_STATIONS, N_STATES, C, E):
     """We know the first element in cost_fleet dictionary is the car incurring in more cost. 
     We will change this car distribution chnaging the station with the higher avg cost
     for an other station in the available_stations list.
@@ -73,10 +70,7 @@ def subsystem_distribution_gradientOptimization(FLEET, MAP, SOLUCIONES):
     """
     stillChange = True
     firstIteration = True
-    FLEET.solve_subsystems(MAP, SOLUCIONES)
     FLEET_SECONDARY = copy.deepcopy(FLEET)
-    FLEET_SECONDARY.assignArea(MAP)               
-    FLEET_SECONDARY.solve_subsystems(MAP, SOLUCIONES)
     cont = 0
 
     while stillChange:
@@ -88,17 +82,24 @@ def subsystem_distribution_gradientOptimization(FLEET, MAP, SOLUCIONES):
 
         FLEET_SECONDARY.set_cost_distribution()
         cost_fleet = FLEET_SECONDARY.cost_distribution
-        most_expensive_car = cost_fleet.head(1).index[0] #Id of car with the route with more cost.
-        most_expensive_car = FLEET_SECONDARY.fleet[most_expensive_car]
+        n_C = int(np.round(len(cost_fleet)))
+        #TEST-----------------------------------------
+        expensive_car_list = cost_fleet.head(n_C).index #Id of car with the route with more cost.
+        #TEST-----------------------------------------
+        for car_key in expensive_car_list:
+            expensive_car = FLEET_SECONDARY.fleet[car_key]
 
-        most_expensive_station = most_expensive_car.get_mostExpensive_station()
-        most_expensive_car.subsystem_list.remove(most_expensive_station)
-        most_expensive_car.set_subsystem(MAP)
+            n_E =  int(np.round(FLEET.AREA_SIZE * E))
+            
+            expensive_stations = expensive_car.get_mostExpensive_station(n_E)
+            for station in expensive_stations:
+                expensive_car.subsystem_list.remove(station)  
+            expensive_car.set_subsystem(MAP)
 
         MAP.update_available_stations(FLEET_SECONDARY)
-        MAP.change_station(most_expensive_car, MAP) #this function must change the worst station for car i to another station
-        
-        FLEET_SECONDARY.solve_subsystems(MAP, SOLUCIONES)
+        FLEET_SECONDARY.reasignAreaGradient(MAP)
+        FLEET_SECONDARY.solve_subsystems(MAP, SOLUCIONES, N_STATIONS, N_STATES)
+
         if FLEET_SECONDARY.accumalated_cost < FLEET.accumalated_cost:
             FLEET = copy.deepcopy(FLEET_SECONDARY)
             stillChange =  True
